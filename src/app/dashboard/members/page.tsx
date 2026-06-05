@@ -5,8 +5,8 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createBrowserClientInstance } from '@/lib/supabase';
 import {
-  parseDateString,
   formatDate,
+  formatCurrency,
 } from '@/lib/dueUtils';
 import {
   Search,
@@ -14,7 +14,7 @@ import {
   UserPlus,
   Phone,
   Calendar,
-  DollarSign,
+  IndianRupee,
   MapPin,
   ChevronRight,
   Filter,
@@ -31,7 +31,7 @@ interface Member {
   subscription_amount: number;
   start_date: string;
   next_due_date: string;
-  status: 'Paid' | 'Due Soon' | 'Overdue' | 'Unpaid';
+  status: 'Paid' | 'Due Soon' | 'Overdue' | 'Unpaid' | 'Due Today';
   created_at: string;
 }
 
@@ -43,7 +43,7 @@ function MembersPageContent() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'All' | 'Paid' | 'Unpaid' | 'Due Soon' | 'Overdue'>('All');
+  const [statusFilter, setStatusFilter] = useState<'All' | 'Paid' | 'Unpaid' | 'Due Soon' | 'Overdue' | 'Due Today'>('All');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   // Add Member Form State
@@ -117,15 +117,8 @@ function MembersPageContent() {
     }
 
     try {
-      // 1. Calculate initial next due date
-      const start = parseDateString(startDate);
-      const nextDue = new Date(start);
-      if (subType === 'Monthly') {
-        nextDue.setMonth(nextDue.getMonth() + 1);
-      } else {
-        nextDue.setFullYear(nextDue.getFullYear() + 1);
-      }
-      const nextDueDateStr = formatDate(nextDue);
+      // 1. Set next due date to start date initially for newly created Unpaid member
+      const nextDueDateStr = startDate;
 
       // 2. Set initial status as 'Unpaid'
       const statusVal = 'Unpaid';
@@ -235,7 +228,14 @@ function MembersPageContent() {
           <span className="text-xs text-slate-500 font-medium flex items-center gap-1">
             <Filter className="h-3.5 w-3.5" /> Filter:
           </span>
-          {(['All', 'Paid', 'Unpaid', 'Due Soon', 'Overdue'] as const).map((filter) => (
+          {([
+            'All',
+            'Paid',
+            'Due Today',
+            'Due Soon',
+            'Overdue',
+            'Unpaid',
+          ] as const).map((filter) => (
             <button
               key={filter}
               onClick={() => setStatusFilter(filter)}
@@ -310,7 +310,7 @@ function MembersPageContent() {
                       </span>
                     </td>
                     <td className="px-6 py-4 font-semibold text-slate-200">
-                      ${Number(member.subscription_amount).toFixed(2)}
+                      {formatCurrency(member.subscription_amount)}
                     </td>
                     <td className="px-6 py-4 text-slate-400">
                       {new Date(member.next_due_date).toLocaleDateString(undefined, {
@@ -322,6 +322,8 @@ function MembersPageContent() {
                         className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                           member.status === 'Paid'
                             ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                            : member.status === 'Due Today'
+                            ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
                             : member.status === 'Due Soon'
                             ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
                             : member.status === 'Unpaid'
@@ -363,6 +365,8 @@ function MembersPageContent() {
                     className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                       member.status === 'Paid'
                         ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                        : member.status === 'Due Today'
+                        ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
                         : member.status === 'Due Soon'
                         ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
                         : member.status === 'Unpaid'
@@ -392,7 +396,7 @@ function MembersPageContent() {
                     </span>
                   </div>
                   <div className="text-right font-semibold text-white mt-1">
-                    ${Number(member.subscription_amount).toFixed(2)}
+                    {formatCurrency(member.subscription_amount)}
                   </div>
                 </div>
               </Link>
@@ -542,11 +546,11 @@ function MembersPageContent() {
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                    Subscription Amount ($) <span className="text-red-500">*</span>
+                    Subscription Amount (₹) <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
-                      <DollarSign className="h-4 w-4" />
+                      <IndianRupee className="h-4 w-4" />
                     </div>
                     <input
                       type="number"
@@ -554,7 +558,7 @@ function MembersPageContent() {
                       required
                       value={subAmount}
                       onChange={(e) => setSubAmount(e.target.value)}
-                      placeholder="49.99"
+                      placeholder="500"
                       className="block w-full rounded-lg border border-slate-800 bg-slate-950 py-2.5 pl-10 pr-3 text-sm text-slate-100 placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                     />
                   </div>

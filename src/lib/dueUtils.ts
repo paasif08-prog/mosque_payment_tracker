@@ -18,14 +18,18 @@ export function formatDate(date: Date): string {
 export function calculateStatus(
   nextDueDateStr: string,
   subscriptionType: 'Monthly' | 'Yearly'
-): 'Paid' | 'Due Soon' | 'Overdue' {
+): 'Paid' | 'Due Soon' | 'Overdue' | 'Unpaid' | 'Due Today' {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   const due = parseDateString(nextDueDateStr);
 
   const diffTime = due.getTime() - today.getTime();
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) {
+    return 'Due Today';
+  }
 
   if (diffDays < 0) {
     return 'Overdue';
@@ -39,16 +43,30 @@ export function calculateStatus(
   }
 }
 
-// Calculates next due date based on payment date and current due date (Option A)
+// Calculates next due date based on payment date and current due date
+// If this is the member's first payment, we add the interval directly to the payment date.
+// For subsequent payments (Option A):
 // If the member is not overdue, extend from the current due date.
 // If the member is overdue, extend from the payment date.
 export function calculateNextDueDate(
   currentDueDateStr: string,
   paymentDateStr: string,
-  subscriptionType: 'Monthly' | 'Yearly'
+  subscriptionType: 'Monthly' | 'Yearly',
+  isFirstPayment: boolean = false
 ): string {
-  const currentDue = parseDateString(currentDueDateStr);
   const paymentDate = parseDateString(paymentDateStr);
+
+  if (isFirstPayment) {
+    const nextDue = new Date(paymentDate);
+    if (subscriptionType === 'Monthly') {
+      nextDue.setMonth(nextDue.getMonth() + 1);
+    } else {
+      nextDue.setFullYear(nextDue.getFullYear() + 1);
+    }
+    return formatDate(nextDue);
+  }
+
+  const currentDue = parseDateString(currentDueDateStr);
 
   // Check if member is overdue at the time of payment
   // (i.e. paymentDate is after currentDue)
@@ -75,4 +93,15 @@ export async function syncMemberStatuses(supabase: SupabaseClient) {
   } catch (err) {
     console.error('Failed to sync member statuses:', err);
   }
+}
+
+// Formats a number to Indian Rupees using en-IN locale
+export function formatCurrency(amount: number): string {
+  const formatter = new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: amount % 1 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  });
+  return formatter.format(amount);
 }

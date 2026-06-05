@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { createBrowserClientInstance } from '@/lib/supabase';
-import { parseDateString } from '@/lib/dueUtils';
+import { parseDateString, formatCurrency } from '@/lib/dueUtils';
 import {
   Clock,
   Search,
@@ -163,7 +163,7 @@ export default function PendingPaymentsPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 font-semibold text-slate-200">
-                        ${Number(member.subscription_amount).toFixed(2)}
+                        {formatCurrency(member.subscription_amount)}
                       </td>
                       <td className="px-6 py-4 text-slate-400">
                         {new Date(member.next_due_date).toLocaleDateString(undefined, {
@@ -217,7 +217,7 @@ export default function PendingPaymentsPage() {
                     <div className="flex justify-between">
                       <span>Plan: {member.subscription_type}</span>
                       <span className="font-semibold text-white">
-                        ${Number(member.subscription_amount).toFixed(2)}
+                        {formatCurrency(member.subscription_amount)}
                       </span>
                     </div>
                     <div className="flex justify-between">

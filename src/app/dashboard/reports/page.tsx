@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { createBrowserClientInstance } from '@/lib/supabase';
-import { formatDate } from '@/lib/dueUtils';
+import { formatDate, formatCurrency } from '@/lib/dueUtils';
 import {
   Download,
   Printer,
@@ -12,7 +12,7 @@ import {
   Users,
   CheckCircle,
   AlertTriangle,
-  DollarSign,
+  IndianRupee,
   Calendar,
   Activity,
 } from 'lucide-react';
@@ -154,7 +154,7 @@ export default function ReportsPage() {
           m.phone,
           m.address || '',
           m.subscription_type,
-          m.subscription_amount,
+          formatCurrency(m.subscription_amount),
           m.start_date,
           m.next_due_date,
           m.status,
@@ -240,12 +240,12 @@ export default function ReportsPage() {
                 <div className="flex items-center justify-between print:justify-start print:gap-2">
                   <span className="text-sm font-medium text-slate-400 print:text-slate-500">Total Collection</span>
                   <div className="rounded-lg bg-emerald-500/10 p-2 text-emerald-400 print:hidden">
-                    <DollarSign className="h-5 w-5" />
+                    <IndianRupee className="h-5 w-5" />
                   </div>
                 </div>
                 <div className="mt-4">
                   <span className="text-3xl font-bold text-white print:text-emerald-600">
-                    ${stats.totalCollection.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {formatCurrency(stats.totalCollection)}
                   </span>
                   <p className="text-xs text-slate-500 mt-1 print:text-slate-400">Total historical recorded collections</p>
                 </div>
@@ -261,7 +261,7 @@ export default function ReportsPage() {
                 </div>
                 <div className="mt-4">
                   <span className="text-3xl font-bold text-white print:text-indigo-600">
-                    ${stats.monthlyCollection.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {formatCurrency(stats.monthlyCollection)}
                   </span>
                   <p className="text-xs text-slate-500 mt-1 print:text-slate-400">
                     Current month: {new Date().toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
@@ -279,7 +279,7 @@ export default function ReportsPage() {
                 </div>
                 <div className="mt-4">
                   <span className="text-3xl font-bold text-white print:text-purple-600">
-                    ${stats.yearlyCollection.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {formatCurrency(stats.yearlyCollection)}
                   </span>
                   <p className="text-xs text-slate-500 mt-1 print:text-slate-400">Current calendar year: {new Date().getFullYear()}</p>
                 </div>
@@ -362,7 +362,7 @@ export default function ReportsPage() {
                     <td className="p-2 font-semibold">{m.full_name}</td>
                     <td className="p-2 text-slate-600">{m.phone}</td>
                     <td className="p-2">{m.subscription_type}</td>
-                    <td className="p-2">${Number(m.subscription_amount).toFixed(2)}</td>
+                    <td className="p-2">{formatCurrency(m.subscription_amount)}</td>
                     <td className="p-2">{new Date(m.next_due_date).toLocaleDateString()}</td>
                     <td className="p-2 font-semibold">{m.status}</td>
                   </tr>

@@ -8,13 +8,14 @@ import {
   formatDate,
   calculateStatus,
   calculateNextDueDate,
+  formatCurrency,
 } from '@/lib/dueUtils';
 import {
   ArrowLeft,
   Calendar,
   Phone,
   MapPin,
-  DollarSign,
+  IndianRupee,
   Briefcase,
   Clock,
   PlusCircle,
@@ -37,7 +38,7 @@ interface Member {
   subscription_amount: number;
   start_date: string;
   next_due_date: string;
-  status: 'Paid' | 'Due Soon' | 'Overdue' | 'Unpaid';
+  status: 'Paid' | 'Due Soon' | 'Overdue' | 'Unpaid' | 'Due Today';
   created_at: string;
 }
 
@@ -162,7 +163,8 @@ export default function MemberDetailsPage({ params }: { params: Promise<{ id: st
       const newNextDue = calculateNextDueDate(
         member.next_due_date,
         payDate,
-        member.subscription_type
+        member.subscription_type,
+        payments.length === 0
       );
 
       // 2. Calculate new status based on that due date
@@ -324,6 +326,8 @@ export default function MemberDetailsPage({ params }: { params: Promise<{ id: st
                   className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold mt-1.5 ${
                     member.status === 'Paid'
                       ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                      : member.status === 'Due Today'
+                      ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
                       : member.status === 'Due Soon'
                       ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
                       : member.status === 'Unpaid'
@@ -395,10 +399,10 @@ export default function MemberDetailsPage({ params }: { params: Promise<{ id: st
               </div>
 
               <div className="flex items-center gap-3 text-slate-400">
-                <DollarSign className="h-4 w-4 text-slate-500" />
+                <IndianRupee className="h-4 w-4 text-slate-500" />
                 <div>
                   <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Subscription Cost</p>
-                  <p className="text-slate-200 mt-0.5">${Number(member.subscription_amount).toFixed(2)}</p>
+                  <p className="text-slate-200 mt-0.5">{formatCurrency(member.subscription_amount)}</p>
                 </div>
               </div>
 
@@ -437,7 +441,7 @@ export default function MemberDetailsPage({ params }: { params: Promise<{ id: st
               <div>
                 <p className="text-xs text-slate-500 uppercase font-semibold">Last Paid Amount</p>
                 <p className="text-sm font-semibold text-emerald-400 mt-1">
-                  {lastPayment ? `$${Number(lastPayment.amount).toFixed(2)}` : 'N/A'}
+                  {lastPayment ? formatCurrency(lastPayment.amount) : 'N/A'}
                 </p>
               </div>
 
@@ -490,7 +494,7 @@ export default function MemberDetailsPage({ params }: { params: Promise<{ id: st
                       {new Date(p.payment_date).toLocaleDateString(undefined, { dateStyle: 'medium' })}
                     </td>
                     <td className="px-6 py-4 font-semibold text-emerald-400">
-                      ${Number(p.amount).toFixed(2)}
+                      {formatCurrency(p.amount)}
                     </td>
                     <td className="px-6 py-4 text-slate-400 max-w-xs truncate" title={p.notes || ''}>
                       {p.notes || '—'}
@@ -530,10 +534,10 @@ export default function MemberDetailsPage({ params }: { params: Promise<{ id: st
 
             <form onSubmit={handleRecordPayment} className="mt-4 space-y-4">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Amount Paid ($) *</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Amount Paid (₹) *</label>
                 <div className="relative">
                   <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
-                    <DollarSign className="h-4 w-4" />
+                    <IndianRupee className="h-4 w-4" />
                   </div>
                   <input
                     type="number"
@@ -655,7 +659,7 @@ export default function MemberDetailsPage({ params }: { params: Promise<{ id: st
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Cost ($) *</label>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Cost (₹) *</label>
                   <input
                     type="number"
                     step="0.01"

@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { createServerClientInstance } from '@/lib/supabase-server';
-import { syncMemberStatuses, formatDate } from '@/lib/dueUtils';
+import { syncMemberStatuses, formatDate, formatCurrency } from '@/lib/dueUtils';
 import {
   Users,
   CheckCircle,
@@ -41,7 +41,7 @@ export default async function DashboardPage() {
     supabase.from('members').select('*', { count: 'exact', head: true }),
     supabase.from('members').select('*', { count: 'exact', head: true }).eq('status', 'Paid'),
     supabase.from('members').select('*', { count: 'exact', head: true }).eq('status', 'Overdue'),
-    supabase.from('members').select('*', { count: 'exact', head: true }).eq('next_due_date', todayStr),
+    supabase.from('members').select('*', { count: 'exact', head: true }).eq('status', 'Due Today'),
     supabase.from('members')
       .select('*', { count: 'exact', head: true })
       .gte('next_due_date', todayStr)
@@ -51,7 +51,7 @@ export default async function DashboardPage() {
   const total = totalMembers || 0;
   const paid = paidMembers || 0;
   const overdue = overdueMembers || 0;
-  const unpaid = total - paid; // Unpaid + Due Soon + Overdue
+  const unpaid = total - paid; // Unpaid + Due Soon + Overdue + Due Today
   const dueToday = dueTodayMembers || 0;
   const dueThisWeek = dueThisWeekMembers || 0;
 
@@ -194,12 +194,12 @@ export default async function DashboardPage() {
         <div className="relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900/40 p-6 shadow-md backdrop-blur-md">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-slate-400">Due Today</span>
-            <div className="rounded-lg bg-indigo-500/10 p-2 text-indigo-400">
+            <div className="rounded-lg bg-orange-500/10 p-2 text-orange-400">
               <Calendar className="h-5 w-5" />
             </div>
           </div>
           <div className="mt-4">
-            <span className="text-3xl font-bold text-indigo-400">{dueToday}</span>
+            <span className="text-3xl font-bold text-orange-400">{dueToday}</span>
             <p className="text-xs text-slate-500 mt-1">Subscriptions ending today</p>
           </div>
         </div>
@@ -297,7 +297,7 @@ export default async function DashboardPage() {
                     </span>
                   </div>
                   <div className="font-semibold text-emerald-400 text-sm bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg">
-                    +${Number(payment.amount).toFixed(2)}
+                    +{formatCurrency(payment.amount)}
                   </div>
                 </div>
               ))}
