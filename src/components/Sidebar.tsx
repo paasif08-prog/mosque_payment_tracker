@@ -14,6 +14,7 @@ import {
   X,
   CreditCard,
   User,
+  Heart,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -28,6 +29,7 @@ export default function Sidebar({ adminEmail }: SidebarProps) {
   const menuItems = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Members', href: '/dashboard/members', icon: Users },
+    { name: 'Donations', href: '/dashboard/donations', icon: Heart },
     { name: 'Pending Payments', href: '/dashboard/pending', icon: Clock },
     { name: 'Reports', href: '/dashboard/reports', icon: BarChart3 },
   ];

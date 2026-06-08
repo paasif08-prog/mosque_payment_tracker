@@ -1,7 +1,8 @@
 import React from 'react';
 import Link from 'next/link';
 import { createServerClientInstance } from '@/lib/supabase-server';
-import { syncMemberStatuses, formatDate, formatCurrency } from '@/lib/dueUtils';
+import { calculateCoverageNextDueDate, formatCurrency, parseDateString } from '@/lib/dueUtils';
+import { getMemberDisplayStatus } from '@/lib/statusUtils';
 import {
   Users,
   CheckCircle,
@@ -13,6 +14,7 @@ import {
   CreditCard,
   FileText,
   TrendingUp,
+  Heart,
 } from 'lucide-react';
 
 export const revalidate = 0; // Disable caching for dashboard
@@ -20,40 +22,85 @@ export const revalidate = 0; // Disable caching for dashboard
 export default async function DashboardPage() {
   const supabase = await createServerClientInstance();
 
-  // 1. Sync member statuses in DB based on current date
-  await syncMemberStatuses(supabase);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-  // 2. Fetch Widget Data
-  const todayStr = formatDate(new Date());
-
-  const sevenDaysLater = new Date();
+  const sevenDaysLater = new Date(today);
   sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
-  const sevenDaysLaterStr = formatDate(sevenDaysLater);
 
-  // Stats queries
   const [
-    { count: totalMembers },
-    { count: paidMembers },
-    { count: overdueMembers },
-    { count: dueTodayMembers },
-    { count: dueThisWeekMembers },
+    { data: memberRows },
+    { data: paymentRows },
+    { data: donationData },
   ] = await Promise.all([
-    supabase.from('members').select('*', { count: 'exact', head: true }),
-    supabase.from('members').select('*', { count: 'exact', head: true }).eq('status', 'Paid'),
-    supabase.from('members').select('*', { count: 'exact', head: true }).eq('status', 'Overdue'),
-    supabase.from('members').select('*', { count: 'exact', head: true }).eq('status', 'Due Today'),
-    supabase.from('members')
-      .select('*', { count: 'exact', head: true })
-      .gte('next_due_date', todayStr)
-      .lte('next_due_date', sevenDaysLaterStr),
+    supabase.from('members').select('id, start_date, next_due_date, subscription_type, subscription_amount'),
+    supabase.from('payments').select('member_id, amount, payment_date'),
+    supabase.from('donations').select('amount, category, member_id'),
   ]);
 
-  const total = totalMembers || 0;
-  const paid = paidMembers || 0;
-  const overdue = overdueMembers || 0;
-  const unpaid = total - paid; // Unpaid + Due Soon + Overdue + Due Today
-  const dueToday = dueTodayMembers || 0;
-  const dueThisWeek = dueThisWeekMembers || 0;
+  const paymentsByMember = new Map<string, { amount: number; payment_date: string }[]>();
+  paymentRows?.forEach((p) => {
+    const list = paymentsByMember.get(p.member_id) || [];
+    list.push({ amount: p.amount, payment_date: p.payment_date });
+    paymentsByMember.set(p.member_id, list);
+  });
+
+  let paid = 0;
+  let unpaid = 0;
+  let overdue = 0;
+  let dueToday = 0;
+  let dueThisWeek = 0;
+
+  memberRows?.forEach((m) => {
+    const memberPayments = paymentsByMember.get(m.id) || [];
+    const totalPaid = memberPayments.reduce((sum, p) => sum + p.amount, 0);
+    const nextDueDate = calculateCoverageNextDueDate(
+      m.start_date,
+      m.subscription_type,
+      m.subscription_amount,
+      totalPaid
+    );
+    const status = getMemberDisplayStatus(
+      {
+        id: m.id,
+        start_date: m.start_date,
+        next_due_date: nextDueDate,
+        subscription_type: m.subscription_type,
+        subscription_amount: m.subscription_amount,
+      },
+      memberPayments
+    );
+
+    if (status === 'Paid') paid++;
+    else if (status === 'Unpaid') unpaid++;
+    else if (status === 'Overdue') overdue++;
+    else if (status === 'Due Today') dueToday++;
+
+    const due = parseDateString(nextDueDate);
+    const diffDays = Math.round((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays >= 0 && diffDays <= 7) dueThisWeek++;
+  });
+
+  const total = memberRows?.length || 0;
+
+  // Donation aggregations
+  let totalDonations = 0;
+  let generalDonations = 0;
+  let saharDonations = 0;
+  let iftarDonations = 0;
+  let memberDonations = 0;
+  let externalDonations = 0;
+
+  donationData?.forEach((d) => {
+    const amt = Number(d.amount);
+    totalDonations += amt;
+    if (d.category === 'General') generalDonations += amt;
+    else if (d.category === 'Sahar') saharDonations += amt;
+    else if (d.category === 'Iftar') iftarDonations += amt;
+
+    if (d.member_id) memberDonations += amt;
+    else externalDonations += amt;
+  });
 
   // 3. Fetch Recent Payments (Last 5 records)
   const { data: recentPayments } = await supabase
@@ -133,10 +180,13 @@ export default async function DashboardPage() {
       {/* 6 Grid Stats Widgets */}
       <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         {/* Total Members */}
-        <div className="relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900/40 p-6 shadow-md backdrop-blur-md">
+        <Link
+          href="/dashboard/members"
+          className="relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900/40 p-6 shadow-md backdrop-blur-md hover:scale-[1.02] hover:border-slate-700/50 hover:shadow-lg hover:shadow-slate-950/50 transition duration-200 group block cursor-pointer"
+        >
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-slate-400">Total Members</span>
-            <div className="rounded-lg bg-slate-800 p-2 text-slate-300">
+            <span className="text-sm font-medium text-slate-400 group-hover:text-slate-300 transition-colors">Total Members</span>
+            <div className="rounded-lg bg-slate-800 p-2 text-slate-300 group-hover:bg-slate-700 transition-colors">
               <Users className="h-5 w-5" />
             </div>
           </div>
@@ -144,13 +194,16 @@ export default async function DashboardPage() {
             <span className="text-3xl font-bold text-white">{total}</span>
             <p className="text-xs text-slate-500 mt-1">Registered members in tracker</p>
           </div>
-        </div>
+        </Link>
 
         {/* Paid Members */}
-        <div className="relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900/40 p-6 shadow-md backdrop-blur-md">
+        <Link
+          href="/dashboard/members?status=paid"
+          className="relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900/40 p-6 shadow-md backdrop-blur-md hover:scale-[1.02] hover:border-emerald-500/30 hover:shadow-lg hover:shadow-emerald-500/5 transition duration-200 group block cursor-pointer"
+        >
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-slate-400">Paid Members</span>
-            <div className="rounded-lg bg-emerald-500/10 p-2 text-emerald-400">
+            <span className="text-sm font-medium text-slate-400 group-hover:text-slate-300 transition-colors">Paid Members</span>
+            <div className="rounded-lg bg-emerald-500/10 p-2 text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white transition duration-200">
               <CheckCircle className="h-5 w-5" />
             </div>
           </div>
@@ -160,13 +213,16 @@ export default async function DashboardPage() {
               {total > 0 ? Math.round((paid / total) * 100) : 0}% of total membership
             </p>
           </div>
-        </div>
+        </Link>
 
         {/* Unpaid Members */}
-        <div className="relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900/40 p-6 shadow-md backdrop-blur-md">
+        <Link
+          href="/dashboard/members?status=unpaid"
+          className="relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900/40 p-6 shadow-md backdrop-blur-md hover:scale-[1.02] hover:border-amber-500/30 hover:shadow-lg hover:shadow-amber-500/5 transition duration-200 group block cursor-pointer"
+        >
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-slate-400">Unpaid Members</span>
-            <div className="rounded-lg bg-amber-500/10 p-2 text-amber-400">
+            <span className="text-sm font-medium text-slate-400 group-hover:text-slate-300 transition-colors">Unpaid Members</span>
+            <div className="rounded-lg bg-amber-500/10 p-2 text-amber-400 group-hover:bg-amber-500 group-hover:text-white transition duration-200">
               <AlertTriangle className="h-5 w-5" />
             </div>
           </div>
@@ -174,13 +230,16 @@ export default async function DashboardPage() {
             <span className="text-3xl font-bold text-amber-400">{unpaid}</span>
             <p className="text-xs text-slate-500 mt-1">Unpaid, due soon or overdue members</p>
           </div>
-        </div>
+        </Link>
 
         {/* Overdue Members */}
-        <div className="relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900/40 p-6 shadow-md backdrop-blur-md">
+        <Link
+          href="/dashboard/members?status=overdue"
+          className="relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900/40 p-6 shadow-md backdrop-blur-md hover:scale-[1.02] hover:border-red-500/30 hover:shadow-lg hover:shadow-red-500/5 transition duration-200 group block cursor-pointer"
+        >
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-slate-400">Overdue Members</span>
-            <div className="rounded-lg bg-red-500/10 p-2 text-red-400">
+            <span className="text-sm font-medium text-slate-400 group-hover:text-slate-300 transition-colors">Overdue Members</span>
+            <div className="rounded-lg bg-red-500/10 p-2 text-red-400 group-hover:bg-red-500 group-hover:text-white transition duration-200">
               <AlertTriangle className="h-5 w-5" />
             </div>
           </div>
@@ -188,13 +247,16 @@ export default async function DashboardPage() {
             <span className="text-3xl font-bold text-red-400">{overdue}</span>
             <p className="text-xs text-slate-500 mt-1">Requires immediate payment record</p>
           </div>
-        </div>
+        </Link>
 
         {/* Due Today */}
-        <div className="relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900/40 p-6 shadow-md backdrop-blur-md">
+        <Link
+          href="/dashboard/members?status=due-today"
+          className="relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900/40 p-6 shadow-md backdrop-blur-md hover:scale-[1.02] hover:border-orange-500/30 hover:shadow-lg hover:shadow-orange-500/5 transition duration-200 group block cursor-pointer"
+        >
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-slate-400">Due Today</span>
-            <div className="rounded-lg bg-orange-500/10 p-2 text-orange-400">
+            <span className="text-sm font-medium text-slate-400 group-hover:text-slate-300 transition-colors">Due Today</span>
+            <div className="rounded-lg bg-orange-500/10 p-2 text-orange-400 group-hover:bg-orange-500 group-hover:text-white transition duration-200">
               <Calendar className="h-5 w-5" />
             </div>
           </div>
@@ -202,13 +264,16 @@ export default async function DashboardPage() {
             <span className="text-3xl font-bold text-orange-400">{dueToday}</span>
             <p className="text-xs text-slate-500 mt-1">Subscriptions ending today</p>
           </div>
-        </div>
+        </Link>
 
         {/* Due This Week */}
-        <div className="relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900/40 p-6 shadow-md backdrop-blur-md">
+        <Link
+          href="/dashboard/members?filter=due-week"
+          className="relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900/40 p-6 shadow-md backdrop-blur-md hover:scale-[1.02] hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/5 transition duration-200 group block cursor-pointer"
+        >
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-slate-400">Due This Week</span>
-            <div className="rounded-lg bg-blue-500/10 p-2 text-blue-400">
+            <span className="text-sm font-medium text-slate-400 group-hover:text-slate-300 transition-colors">Due This Week</span>
+            <div className="rounded-lg bg-blue-500/10 p-2 text-blue-400 group-hover:bg-blue-500 group-hover:text-white transition duration-200">
               <Clock className="h-5 w-5" />
             </div>
           </div>
@@ -216,13 +281,95 @@ export default async function DashboardPage() {
             <span className="text-3xl font-bold text-blue-400">{dueThisWeek}</span>
             <p className="text-xs text-slate-500 mt-1">Next 7 days due timeline</p>
           </div>
+        </Link>
+      </div>
+
+      {/* Donation Summary Section */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold text-slate-200">Donation Summary</h3>
+        <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Total Donations */}
+          <Link
+            href="/dashboard/donations"
+            className="relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900/40 p-6 shadow-md backdrop-blur-md hover:scale-[1.02] hover:border-indigo-500/30 hover:shadow-lg hover:shadow-indigo-500/5 transition duration-200 group block cursor-pointer"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-slate-400 group-hover:text-slate-300 transition-colors">Total Donations</span>
+              <div className="rounded-lg bg-indigo-500/10 p-2 text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white transition duration-200">
+                <Heart className="h-5 w-5" />
+              </div>
+            </div>
+            <div className="mt-4">
+              <span className="text-3xl font-bold text-white">{formatCurrency(totalDonations)}</span>
+              <p className="text-xs text-slate-500 mt-1">Total combined donations</p>
+            </div>
+          </Link>
+
+          {/* Donations by Category */}
+          <div className="relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900/40 p-6 shadow-md backdrop-blur-md">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-slate-400">By Category</span>
+              <div className="rounded-lg bg-emerald-500/10 p-2 text-emerald-400">
+                <TrendingUp className="h-5 w-5" />
+              </div>
+            </div>
+            <div className="space-y-1.5 mt-2">
+              <Link
+                href="/dashboard/donations?category=General"
+                className="flex justify-between text-xs py-1 px-1.5 rounded hover:bg-slate-850 hover:text-indigo-400 transition"
+              >
+                <span className="text-slate-400">General:</span>
+                <span className="font-semibold text-slate-200">{formatCurrency(generalDonations)}</span>
+              </Link>
+              <Link
+                href="/dashboard/donations?category=Sahar"
+                className="flex justify-between text-xs py-1 px-1.5 rounded hover:bg-slate-850 hover:text-indigo-400 transition"
+              >
+                <span className="text-slate-400">Sahar:</span>
+                <span className="font-semibold text-slate-200">{formatCurrency(saharDonations)}</span>
+              </Link>
+              <Link
+                href="/dashboard/donations?category=Iftar"
+                className="flex justify-between text-xs py-1 px-1.5 rounded hover:bg-slate-850 hover:text-indigo-400 transition"
+              >
+                <span className="text-slate-400">Iftar:</span>
+                <span className="font-semibold text-slate-200">{formatCurrency(iftarDonations)}</span>
+              </Link>
+            </div>
+          </div>
+
+          {/* Donations by Source */}
+          <div className="relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900/40 p-6 shadow-md backdrop-blur-md">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-slate-400">By Source</span>
+              <div className="rounded-lg bg-purple-500/10 p-2 text-purple-400">
+                <Users className="h-5 w-5" />
+              </div>
+            </div>
+            <div className="space-y-1.5 mt-2">
+              <Link
+                href="/dashboard/donations?source=member"
+                className="flex justify-between text-xs py-1 px-1.5 rounded hover:bg-slate-850 hover:text-indigo-400 transition"
+              >
+                <span className="text-slate-400">Member Donations:</span>
+                <span className="font-semibold text-slate-200">{formatCurrency(memberDonations)}</span>
+              </Link>
+              <Link
+                href="/dashboard/donations?source=external"
+                className="flex justify-between text-xs py-1 px-1.5 rounded hover:bg-slate-850 hover:text-indigo-400 transition"
+              >
+                <span className="text-slate-400">External Donors:</span>
+                <span className="font-semibold text-slate-200">{formatCurrency(externalDonations)}</span>
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Quick Action Buttons */}
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-slate-200">Quick Actions</h3>
-        <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
+        <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
           <Link
             href="/dashboard/members?add=true"
             className="flex flex-col items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/20 p-5 hover:bg-slate-900/60 hover:border-indigo-500/50 transition duration-150 group"
@@ -251,6 +398,16 @@ export default async function DashboardPage() {
               <Users className="h-6 w-6" />
             </div>
             <span className="text-sm font-medium text-slate-300">View Members</span>
+          </Link>
+
+          <Link
+            href="/dashboard/donations?add=true"
+            className="flex flex-col items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/20 p-5 hover:bg-slate-900/60 hover:border-rose-500/50 transition duration-150 group"
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-500/10 text-rose-400 group-hover:bg-rose-600 group-hover:text-white transition duration-200">
+              <Heart className="h-6 w-6" />
+            </div>
+            <span className="text-sm font-medium text-slate-300">Log Donation</span>
           </Link>
 
           <Link

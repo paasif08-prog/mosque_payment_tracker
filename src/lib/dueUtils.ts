@@ -43,44 +43,42 @@ export function calculateStatus(
   }
 }
 
-// Calculates next due date based on payment date and current due date
-// If this is the member's first payment, we add the interval directly to the payment date.
-// For subsequent payments (Option A):
-// If the member is not overdue, extend from the current due date.
-// If the member is overdue, extend from the payment date.
-export function calculateNextDueDate(
-  currentDueDateStr: string,
-  paymentDateStr: string,
+function billingStartDate(year: number, monthIndex: number, startDay: number): Date {
+  const lastDayOfMonth = new Date(year, monthIndex + 1, 0).getDate();
+  const day = Math.min(startDay, lastDayOfMonth);
+  return new Date(year, monthIndex, day);
+}
+
+/**
+ * Derive next due date from coverage: first uncovered billing period after payments.
+ * Matches the Payment Coverage Calendar allocation model.
+ */
+export function calculateCoverageNextDueDate(
+  startDateStr: string,
   subscriptionType: 'Monthly' | 'Yearly',
-  isFirstPayment: boolean = false
+  subscriptionAmount: number,
+  totalPaid: number
 ): string {
-  const paymentDate = parseDateString(paymentDateStr);
+  const startD = parseDateString(startDateStr);
+  const startDay = startD.getDate();
 
-  if (isFirstPayment) {
-    const nextDue = new Date(paymentDate);
-    if (subscriptionType === 'Monthly') {
-      nextDue.setMonth(nextDue.getMonth() + 1);
-    } else {
-      nextDue.setFullYear(nextDue.getFullYear() + 1);
-    }
-    return formatDate(nextDue);
+  if (subscriptionAmount <= 0) {
+    return formatDate(startD);
   }
 
-  const currentDue = parseDateString(currentDueDateStr);
+  const periodsCovered = Math.floor(totalPaid / subscriptionAmount);
 
-  // Check if member is overdue at the time of payment
-  // (i.e. paymentDate is after currentDue)
-  const isOverdue = paymentDate.getTime() > currentDue.getTime();
-  const baseDate = isOverdue ? paymentDate : currentDue;
-
-  const nextDue = new Date(baseDate);
   if (subscriptionType === 'Monthly') {
-    nextDue.setMonth(nextDue.getMonth() + 1);
-  } else {
-    nextDue.setFullYear(nextDue.getFullYear() + 1);
+    const startYear = startD.getFullYear();
+    const startMonth = startD.getMonth();
+    const targetMonth = startMonth + periodsCovered;
+    const targetYear = startYear + Math.floor(targetMonth / 12);
+    const targetMonthIndex = ((targetMonth % 12) + 12) % 12;
+    return formatDate(billingStartDate(targetYear, targetMonthIndex, startDay));
   }
 
-  return formatDate(nextDue);
+  const targetYear = startD.getFullYear() + periodsCovered;
+  return formatDate(billingStartDate(targetYear, startD.getMonth(), startDay));
 }
 
 // Invokes the Supabase database function to sync statuses for all members

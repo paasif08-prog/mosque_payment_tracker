@@ -4,16 +4,14 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createBrowserClientInstance } from '@/lib/supabase';
-import {
-  formatDate,
-  formatCurrency,
-} from '@/lib/dueUtils';
+import DatePicker from '@/components/DatePicker';
+import { formatDate, calculateCoverageNextDueDate, formatCurrency, parseDateString } from '@/lib/dueUtils';
+import { getMemberDisplayStatus } from '@/lib/statusUtils';
 import {
   Search,
   Plus,
   UserPlus,
   Phone,
-  Calendar,
   IndianRupee,
   MapPin,
   ChevronRight,
@@ -44,6 +42,7 @@ function MembersPageContent() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'All' | 'Paid' | 'Unpaid' | 'Due Soon' | 'Overdue' | 'Due Today'>('All');
+  const [dueWeekFilter, setDueWeekFilter] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   // Add Member Form State
@@ -64,17 +63,40 @@ function MembersPageContent() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Sync statuses on load
-      await supabase.rpc('sync_member_statuses');
-
-      // Fetch members
-      const { data, error } = await supabase
+      // Fetch members basic info
+      const { data: memberData, error: memberErr } = await supabase
         .from('members')
         .select('*')
         .order('full_name', { ascending: true });
-
-      if (error) throw error;
-      setMembers(data || []);
+      if (memberErr) throw memberErr;
+      // For each member, fetch payments and derive status
+      const membersWithStatus = await Promise.all((memberData || []).map(async (m) => {
+        const { data: payments, error: payErr } = await supabase
+          .from('payments')
+          .select('amount,payment_date')
+          .eq('member_id', m.id);
+        if (payErr) console.error('Payments fetch error for member', m.id, payErr);
+        const memberPayments = (payments || []).map(p => ({ amount: p.amount, payment_date: p.payment_date }));
+        const totalPaid = memberPayments.reduce((sum, p) => sum + p.amount, 0);
+        const nextDueDate = calculateCoverageNextDueDate(
+          m.start_date,
+          m.subscription_type,
+          m.subscription_amount,
+          totalPaid
+        );
+        const derived = getMemberDisplayStatus(
+          {
+            id: m.id,
+            start_date: m.start_date,
+            next_due_date: nextDueDate,
+            subscription_type: m.subscription_type,
+            subscription_amount: m.subscription_amount,
+          },
+          memberPayments
+        );
+        return { ...m, next_due_date: nextDueDate, status: derived };
+      }));
+      setMembers(membersWithStatus);
     } catch (err) {
       console.error('Error fetching members:', err);
     } finally {
@@ -87,10 +109,39 @@ function MembersPageContent() {
     fetchData();
   }, []);
 
-  // Listen for the ?add=true query param to open modal automatically
+  // Listen for query params to apply filters or open modal automatically
   useEffect(() => {
+    let updated = false;
+    const statusParam = searchParams.get('status');
+    if (statusParam) {
+      const statusMap: Record<string, 'Paid' | 'Unpaid' | 'Overdue' | 'Due Today' | 'Due Soon'> = {
+        'paid': 'Paid',
+        'unpaid': 'Unpaid',
+        'overdue': 'Overdue',
+        'due-today': 'Due Today',
+        'due-soon': 'Due Soon'
+      };
+      const mapped = statusMap[statusParam.toLowerCase()];
+      if (mapped) {
+        setStatusFilter(mapped);
+        setDueWeekFilter(false);
+        updated = true;
+      }
+    }
+
+    const filterParam = searchParams.get('filter');
+    if (filterParam === 'due-week') {
+      setDueWeekFilter(true);
+      setStatusFilter('All');
+      updated = true;
+    }
+
     if (searchParams.get('add') === 'true') {
       setIsAddModalOpen(true);
+      updated = true;
+    }
+
+    if (updated) {
       // Remove query param without reload
       const newUrl = window.location.pathname;
       window.history.replaceState({ path: newUrl }, '', newUrl);
@@ -168,7 +219,17 @@ function MembersPageContent() {
     const matchesStatus =
       statusFilter === 'All' || member.status === statusFilter;
 
-    return matchesSearch && matchesStatus;
+    let matchesDueWeek = true;
+    if (dueWeekFilter) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const due = parseDateString(member.next_due_date);
+      const diffTime = due.getTime() - today.getTime();
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+      matchesDueWeek = diffDays >= 0 && diffDays <= 7;
+    }
+
+    return matchesSearch && matchesStatus && matchesDueWeek;
   });
 
   // Pagination calculations
@@ -186,7 +247,7 @@ function MembersPageContent() {
   // Reset page when search/filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, statusFilter]);
+  }, [searchQuery, statusFilter, dueWeekFilter]);
 
   return (
     <div className="space-y-6">
@@ -238,9 +299,14 @@ function MembersPageContent() {
           ] as const).map((filter) => (
             <button
               key={filter}
-              onClick={() => setStatusFilter(filter)}
+              onClick={() => {
+                setStatusFilter(filter);
+                if (filter !== 'All') {
+                  setDueWeekFilter(false);
+                }
+              }}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition duration-150 ${
-                statusFilter === filter
+                statusFilter === filter && !dueWeekFilter
                   ? 'bg-indigo-600 text-white'
                   : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-slate-200'
               }`}
@@ -248,6 +314,23 @@ function MembersPageContent() {
               {filter}
             </button>
           ))}
+          
+          <button
+            onClick={() => {
+              setDueWeekFilter(!dueWeekFilter);
+              if (!dueWeekFilter) {
+                setStatusFilter('All');
+              }
+            }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition duration-150 flex items-center gap-1 ${
+              dueWeekFilter
+                ? 'bg-orange-600 text-white shadow-md shadow-orange-600/20'
+                : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-slate-200'
+            }`}
+          >
+            Due This Week
+            {dueWeekFilter && <X className="h-3 w-3 ml-0.5" />}
+          </button>
         </div>
       </div>
 
@@ -262,15 +345,16 @@ function MembersPageContent() {
           <User className="h-12 w-12 text-slate-700 mb-4" />
           <h3 className="text-lg font-semibold text-slate-300">No members found</h3>
           <p className="text-sm text-slate-500 mt-1 max-w-sm">
-            {searchQuery || statusFilter !== 'All'
+            {searchQuery || statusFilter !== 'All' || dueWeekFilter
               ? 'No members match your search queries and status filters.'
               : 'Get started by adding your first member to the system.'}
           </p>
-          {(searchQuery || statusFilter !== 'All') && (
+          {(searchQuery || statusFilter !== 'All' || dueWeekFilter) && (
             <button
               onClick={() => {
                 setSearchQuery('');
                 setStatusFilter('All');
+                setDueWeekFilter(false);
               }}
               className="mt-4 text-xs font-semibold text-indigo-400 hover:text-indigo-300 underline"
             >
@@ -570,18 +654,11 @@ function MembersPageContent() {
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
                   Start Date <span className="text-red-500">*</span>
                 </label>
-                <div className="relative">
-                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
-                    <Calendar className="h-4 w-4" />
-                  </div>
-                  <input
-                    type="date"
-                    required
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="block w-full rounded-lg border border-slate-800 bg-slate-950 py-2.5 pl-10 pr-3 text-sm text-slate-100 placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                  />
-                </div>
+                <DatePicker
+                  value={startDate}
+                  onChange={setStartDate}
+                  required
+                />
               </div>
 
               {/* Actions */}

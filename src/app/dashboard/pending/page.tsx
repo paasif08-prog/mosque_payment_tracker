@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { createBrowserClientInstance } from '@/lib/supabase';
-import { parseDateString, formatCurrency } from '@/lib/dueUtils';
+import { calculateCoverageNextDueDate, parseDateString, formatCurrency } from '@/lib/dueUtils';
+import { deriveMemberStatus } from '@/lib/statusUtils';
 import {
   Clock,
   Search,
@@ -30,18 +31,62 @@ export default function PendingPaymentsPage() {
   const fetchOverdueMembers = async () => {
     setLoading(true);
     try {
-      // 1. Sync member statuses in DB first
-      await supabase.rpc('sync_member_statuses');
+      const [
+        { data: memberData, error: memberErr },
+        { data: paymentData, error: paymentErr },
+      ] = await Promise.all([
+        supabase
+          .from('members')
+          .select('id, full_name, phone, subscription_type, subscription_amount, start_date, next_due_date')
+          .order('next_due_date', { ascending: true }),
+        supabase.from('payments').select('member_id, amount, payment_date'),
+      ]);
 
-      // 2. Fetch overdue members
-      const { data, error } = await supabase
-        .from('members')
-        .select('id, full_name, phone, subscription_type, subscription_amount, next_due_date')
-        .eq('status', 'Overdue')
-        .order('next_due_date', { ascending: true });
+      if (memberErr) throw memberErr;
+      if (paymentErr) throw paymentErr;
 
-      if (error) throw error;
-      setMembers(data || []);
+      const paymentsByMember = new Map<string, { amount: number; payment_date: string }[]>();
+      paymentData?.forEach((p) => {
+        const list = paymentsByMember.get(p.member_id) || [];
+        list.push({ amount: p.amount, payment_date: p.payment_date });
+        paymentsByMember.set(p.member_id, list);
+      });
+
+      const overdueMembers: OverdueMember[] = [];
+
+      for (const m of memberData || []) {
+        const memberPayments = paymentsByMember.get(m.id) || [];
+        const totalPaid = memberPayments.reduce((sum, p) => sum + p.amount, 0);
+        const nextDueDate = calculateCoverageNextDueDate(
+          m.start_date,
+          m.subscription_type,
+          m.subscription_amount,
+          totalPaid
+        );
+        const status = deriveMemberStatus(
+          {
+            id: m.id,
+            start_date: m.start_date,
+            next_due_date: nextDueDate,
+            subscription_type: m.subscription_type,
+            subscription_amount: m.subscription_amount,
+          },
+          memberPayments
+        );
+        if (status === 'Overdue') {
+          overdueMembers.push({
+            id: m.id,
+            full_name: m.full_name,
+            phone: m.phone,
+            subscription_type: m.subscription_type,
+            subscription_amount: m.subscription_amount,
+            next_due_date: nextDueDate,
+          });
+        }
+      }
+
+      overdueMembers.sort((a, b) => a.next_due_date.localeCompare(b.next_due_date));
+      setMembers(overdueMembers);
     } catch (err) {
       console.error('Error fetching overdue members:', err);
     } finally {
