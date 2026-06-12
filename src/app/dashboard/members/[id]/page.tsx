@@ -687,7 +687,7 @@ export default function MemberDetailsPage({ params }: { params: Promise<{ id: st
   const lastPayment = payments.length > 0 ? payments[0] : null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-w-0">
       {/* Back link */}
       <div>
         <Link
@@ -700,9 +700,9 @@ export default function MemberDetailsPage({ params }: { params: Promise<{ id: st
       </div>
 
       {/* Main Profile Grid */}
-      <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
+      <div className="grid gap-6 grid-cols-1 xl:grid-cols-3">
         {/* Profile Card */}
-        <div className="lg:col-span-2 rounded-xl border border-slate-800 bg-slate-900/30 p-6 shadow-md backdrop-blur-md space-y-6">
+        <div className="xl:col-span-2 rounded-xl border border-slate-800 bg-slate-900/30 p-6 shadow-md backdrop-blur-md space-y-6 min-w-0">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-800">
             <div className="flex items-center gap-4">
               <div className="flex h-14 w-14 items-center justify-center rounded-full bg-indigo-600/10 border border-indigo-500/20 text-indigo-400">
@@ -810,7 +810,7 @@ export default function MemberDetailsPage({ params }: { params: Promise<{ id: st
         </div>
 
         {/* Quick Payments overview */}
-        <div className="rounded-xl border border-slate-800 bg-slate-900/30 p-6 shadow-md backdrop-blur-md space-y-6 flex flex-col justify-between">
+        <div className="rounded-xl border border-slate-800 bg-slate-900/30 p-6 shadow-md backdrop-blur-md space-y-6 flex flex-col justify-between min-w-0">
           <div className="space-y-5">
             <h3 className="text-lg font-semibold text-white flex items-center gap-2">
               <Activity className="h-5 w-5 text-indigo-400" /> Payment Summary
@@ -866,7 +866,7 @@ export default function MemberDetailsPage({ params }: { params: Promise<{ id: st
           </div>
         ) : (
           <div className="overflow-x-auto rounded-lg border border-slate-800">
-            <table className="w-full border-collapse text-left text-sm text-slate-300">
+            <table className="w-full min-w-[600px] border-collapse text-left text-sm text-slate-300">
               <thead className="bg-slate-900/60 text-xs font-semibold uppercase text-slate-400 border-b border-slate-800">
                 <tr>
                   <th className="px-6 py-4">Payment Date</th>
@@ -995,7 +995,7 @@ export default function MemberDetailsPage({ params }: { params: Promise<{ id: st
                 return (
                   <div key={year} className="space-y-2">
                     <h4 className="text-sm font-bold text-slate-300">{year}</h4>
-                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-12 gap-3">
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-6 xl:grid-cols-12 gap-3">
                       {yearMonths.map((m: PeriodItem) => (
                         <div
                           key={m.monthIndex}

@@ -663,7 +663,7 @@ function DonationsPageContent() {
   }, [viewMode, listSearchQuery, categoryFilter, sourceFilter]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-w-0">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -684,7 +684,7 @@ function DonationsPageContent() {
       </div>
 
       {/* Donation Dashboard Stats Grid */}
-      <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {/* Unique Donors */}
         <div className="relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900/40 p-5 shadow-md backdrop-blur-md">
           <span className="text-xs font-semibold text-slate-400">Unique Donors</span>
@@ -728,9 +728,9 @@ function DonationsPageContent() {
         </div>
       </div>
 
-      <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
+      <div className="grid gap-6 grid-cols-1 xl:grid-cols-3">
         {/* Left 2 columns: Table & Filters */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="xl:col-span-2 space-y-6 min-w-0">
           {/* Filters and Search Row */}
           <div className="flex flex-col gap-4 rounded-xl border border-slate-800 bg-slate-900/40 p-4 backdrop-blur-md">
             {/* View Toggle */}
@@ -854,8 +854,8 @@ function DonationsPageContent() {
             </div>
           ) : (
             <div className="space-y-4">              {/* Desktop Table */}
-              <div className="hidden md:block overflow-hidden rounded-xl border border-slate-800 bg-slate-900/20 shadow-md">
-                <table className="w-full border-collapse text-left text-sm text-slate-300">
+              <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-800 bg-slate-900/20 shadow-md">
+                <table className="w-full min-w-[700px] border-collapse text-left text-sm text-slate-300">
                   <thead className="bg-slate-900/60 text-xs font-semibold uppercase text-slate-400 border-b border-slate-800">
                     {viewMode === 'transaction' ? (
                       <tr>
@@ -942,8 +942,8 @@ function DonationsPageContent() {
                                           Subtotal: <span className="text-emerald-400">{formatCurrency(group.totalAmount)}</span>
                                         </span>
                                       </div>
-                                      <div className="overflow-hidden rounded-lg border border-slate-850 bg-slate-950/60">
-                                        <table className="w-full text-xs text-left text-slate-300">
+                                      <div className="overflow-x-auto rounded-lg border border-slate-850 bg-slate-950/60">
+                                        <table className="w-full min-w-[480px] text-xs text-left text-slate-300">
                                           <thead className="bg-slate-900/40 text-[10px] font-semibold uppercase text-slate-500 border-b border-slate-850">
                                             <tr>
                                               <th className="px-4 py-2">Date</th>
@@ -1050,7 +1050,7 @@ function DonationsPageContent() {
                                   <td colSpan={6} className="px-6 py-5 border-b border-slate-800/80">
                                     <div className="space-y-4 text-left">
                                       {/* Category Cards */}
-                                      <div className="grid grid-cols-3 gap-4">
+                                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                         <div className="rounded-lg border border-emerald-500/10 bg-emerald-500/5 p-3">
                                           <span className="text-[10px] uppercase font-bold text-emerald-400">General</span>
                                           <div className="text-base font-bold text-white mt-1">{formatCurrency(donor.generalTotal)}</div>
@@ -1081,8 +1081,8 @@ function DonationsPageContent() {
                                                 }`} />
                                                 {cat} Contributions ({catDonations.length})
                                               </h4>
-                                              <div className="overflow-hidden rounded-lg border border-slate-850 bg-slate-950/50">
-                                                <table className="w-full text-xs text-left text-slate-350">
+                                              <div className="overflow-x-auto rounded-lg border border-slate-850 bg-slate-950/50">
+                                                <table className="w-full min-w-[480px] text-xs text-left text-slate-350">
                                                   <thead className="bg-slate-900/40 text-[10px] font-semibold uppercase text-slate-500 border-b border-slate-850">
                                                     <tr>
                                                       <th className="px-4 py-2">Date</th>
@@ -1373,7 +1373,7 @@ function DonationsPageContent() {
 
               {/* Pagination Controls */}
               {totalPages > 1 && (
-                <div className="flex items-center justify-between border-t border-slate-800 pt-4 text-sm text-slate-400">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-slate-800 pt-4 text-sm text-slate-400">
                   <span>
                     Showing <span className="text-slate-200">{startIndex + 1}</span> to{' '}
                     <span className="text-slate-200">
@@ -1404,7 +1404,7 @@ function DonationsPageContent() {
         </div>
 
         {/* Right 1 column: Top Donors Widget */}
-        <div className="space-y-6">
+        <div className="space-y-6 min-w-0">
           <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-5 shadow-md backdrop-blur-md">
             <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-amber-400" /> Top Donors

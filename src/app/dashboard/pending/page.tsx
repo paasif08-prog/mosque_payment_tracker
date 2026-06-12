@@ -116,7 +116,7 @@ export default function PendingPaymentsPage() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-w-0">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -180,8 +180,8 @@ export default function PendingPaymentsPage() {
       ) : (
         <div className="space-y-4">
           {/* Desktop Table View */}
-          <div className="hidden md:block overflow-hidden rounded-xl border border-slate-800 bg-slate-900/20 shadow-md">
-            <table className="w-full border-collapse text-left text-sm text-slate-300">
+          <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-800 bg-slate-900/20 shadow-md">
+            <table className="w-full min-w-[700px] border-collapse text-left text-sm text-slate-300">
               <thead className="bg-slate-900/60 text-xs font-semibold uppercase text-slate-400 border-b border-slate-800">
                 <tr>
                   <th className="px-6 py-4">Member Name</th>

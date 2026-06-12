@@ -430,7 +430,7 @@ export default function DonorProfilePage({ params }: { params: Promise<{ id: str
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 min-w-0">
       {/* Main Page Layout (hidden during report printing) */}
       <div className={isPrintingReport ? 'print:hidden' : ''}>
         {/* Back navigation & Action Row */}
@@ -520,7 +520,7 @@ export default function DonorProfilePage({ params }: { params: Promise<{ id: str
       </div>
 
       {/* Summary Metrics Cards */}
-      <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {/* Total Lifetime */}
         <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-5 shadow-md backdrop-blur-md">
           <span className="text-xs font-semibold text-slate-400 block mb-1">Total Donated</span>
@@ -578,9 +578,9 @@ export default function DonorProfilePage({ params }: { params: Promise<{ id: str
       </div>
 
       {/* Main Grid: Left Timeline, Right History list */}
-      <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
+      <div className="grid gap-6 grid-cols-1 xl:grid-cols-3">
         {/* Left Column: Timeline */}
-        <div className="space-y-4">
+        <div className="space-y-4 min-w-0">
           <h3 className="text-lg font-bold text-slate-200 flex items-center gap-2">
             <Activity className="h-5 w-5 text-indigo-400" /> Donation Timeline
           </h3>
@@ -660,7 +660,7 @@ export default function DonorProfilePage({ params }: { params: Promise<{ id: str
         </div>
 
         {/* Right 2 Columns: Full History Table */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="xl:col-span-2 space-y-4 min-w-0">
           <h3 className="text-lg font-bold text-slate-200 flex items-center gap-2">
             <FileText className="h-5 w-5 text-indigo-400" /> Donation History Records
           </h3>
@@ -671,7 +671,7 @@ export default function DonorProfilePage({ params }: { params: Promise<{ id: str
             ) : (
               <div className="space-y-4">
                 <div className="overflow-x-auto rounded-lg border border-slate-800">
-                  <table className="w-full border-collapse text-left text-xs text-slate-300">
+                  <table className="w-full min-w-[700px] border-collapse text-left text-xs text-slate-300">
                     <thead className="bg-slate-900/60 text-xs font-semibold uppercase text-slate-400 border-b border-slate-800">
                       <tr>
                         <th className="p-3">Donation Date</th>
@@ -736,7 +736,7 @@ export default function DonorProfilePage({ params }: { params: Promise<{ id: str
 
                 {/* Pagination Controls */}
                 {totalPages > 1 && (
-                  <div className="flex items-center justify-between border-t border-slate-800 pt-4 text-xs text-slate-400">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-slate-800 pt-4 text-xs text-slate-400">
                     <span>
                       Showing <span className="text-slate-200">{startIndex + 1}</span> to{' '}
                       <span className="text-slate-200">

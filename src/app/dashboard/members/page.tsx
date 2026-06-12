@@ -250,7 +250,7 @@ function MembersPageContent() {
   }, [searchQuery, statusFilter, dueWeekFilter]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-w-0">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -365,8 +365,8 @@ function MembersPageContent() {
       ) : (
         <div className="space-y-4">
           {/* Desktop Table view */}
-          <div className="hidden md:block overflow-hidden rounded-xl border border-slate-800 bg-slate-900/20 shadow-md">
-            <table className="w-full border-collapse text-left text-sm text-slate-300">
+          <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-800 bg-slate-900/20 shadow-md">
+            <table className="w-full min-w-[700px] border-collapse text-left text-sm text-slate-300">
               <thead className="bg-slate-900/60 text-xs font-semibold uppercase text-slate-400 border-b border-slate-800">
                 <tr>
                   <th className="px-6 py-4">Name</th>
@@ -489,7 +489,7 @@ function MembersPageContent() {
 
           {/* Pagination Controls */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between border-t border-slate-800 pt-4 text-sm text-slate-400">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-slate-800 pt-4 text-sm text-slate-400">
               <span>
                 Showing <span className="text-slate-200">{startIndex + 1}</span> to{' '}
                 <span className="text-slate-200">

@@ -129,7 +129,7 @@ export default async function DashboardPage() {
   }[];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 min-w-0">
       {/* Header section */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -138,7 +138,7 @@ export default async function DashboardPage() {
             Overview of membership statuses and payments.
           </p>
         </div>
-        <div className="text-sm text-slate-400 bg-slate-900 border border-slate-800 px-4 py-2 rounded-xl">
+        <div className="text-sm text-slate-400 bg-slate-900 border border-slate-800 px-4 py-2 rounded-xl min-w-0 shrink">
           Today is <span className="font-semibold text-slate-200">{new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
         </div>
       </div>
@@ -369,7 +369,7 @@ export default async function DashboardPage() {
       {/* Quick Action Buttons */}
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-slate-200">Quick Actions</h3>
-        <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-5">
           <Link
             href="/dashboard/members?add=true"
             className="flex flex-col items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/20 p-5 hover:bg-slate-900/60 hover:border-indigo-500/50 transition duration-150 group"

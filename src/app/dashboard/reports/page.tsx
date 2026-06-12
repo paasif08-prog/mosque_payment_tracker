@@ -542,7 +542,7 @@ export default function ReportsPage() {
   const grandTotalIncome = stats.membershipIncome + stats.totalDonations;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 min-w-0">
       {/* Header (hidden on print) */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between print:hidden">
         <div>
@@ -557,7 +557,7 @@ export default function ReportsPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
           <button
             onClick={handleExportCSV}
             disabled={loading || (members.length === 0 && donationRecords.length === 0)}
@@ -654,7 +654,7 @@ export default function ReportsPage() {
               <Users className="h-5 w-5 text-indigo-400 print:hidden" /> Section 1: Membership Report
             </h3>
             
-            <div className="grid gap-5 grid-cols-2 sm:grid-cols-5">
+            <div className="grid gap-5 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
               {/* Paid */}
               <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-4 print:bg-white print:border print:text-slate-900">
                 <p className="text-xs text-slate-500 uppercase font-semibold">Paid Members</p>
@@ -781,7 +781,7 @@ export default function ReportsPage() {
               <Heart className="h-5 w-5 text-indigo-400 print:hidden" /> Section 2: Donation Report
             </h3>
             
-            <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               {/* General Category */}
               <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-5 shadow-md print:bg-white print:border print:text-slate-900">
                 <p className="text-xs text-slate-500 uppercase font-semibold">General Category</p>
