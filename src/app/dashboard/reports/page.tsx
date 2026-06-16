@@ -34,6 +34,7 @@ interface ReportStats {
 }
 
 interface Member {
+  id: string;
   full_name: string;
   phone: string;
   address: string | null;
@@ -56,6 +57,7 @@ interface Donation {
 }
 
 interface Payment {
+  member_id: string;
   amount: number;
   payment_date: string;
 }
@@ -162,7 +164,7 @@ export default function ReportsPage() {
       // 2. Fetch all members
       const { data: memberData, error: memberErr } = await supabase
         .from('members')
-        .select('full_name, phone, address, subscription_type, subscription_amount, start_date, next_due_date, status')
+        .select('id, full_name, phone, address, subscription_type, subscription_amount, start_date, next_due_date, status')
         .order('full_name', { ascending: true });
 
       if (memberErr) throw memberErr;
@@ -172,7 +174,7 @@ export default function ReportsPage() {
       // 3. Fetch all payments to calculate membership collections
       const { data: paymentData, error: paymentErr } = await supabase
         .from('payments')
-        .select('amount, payment_date');
+        .select('member_id, amount, payment_date');
 
       if (paymentErr) throw paymentErr;
       setPayments(paymentData || []);
@@ -352,6 +354,47 @@ export default function ReportsPage() {
     return Array.from(map.values()).sort((a, b) => b.year - a.year);
   }, [donationRecords]);
 
+  const membershipDistribution = useMemo(() => {
+    let monthlyCount = 0;
+    let yearlyCount = 0;
+    let monthlyAmount = 0;
+    let yearlyAmount = 0;
+
+    const memberSubTypes = new Map<string, string>();
+    members.forEach((m) => {
+      memberSubTypes.set(m.id, m.subscription_type);
+      if (m.subscription_type === 'Monthly') {
+        monthlyCount++;
+      } else if (m.subscription_type === 'Yearly') {
+        yearlyCount++;
+      }
+    });
+
+    payments.forEach((p) => {
+      const subType = memberSubTypes.get(p.member_id);
+      if (subType === 'Monthly') {
+        monthlyAmount += Number(p.amount);
+      } else if (subType === 'Yearly') {
+        yearlyAmount += Number(p.amount);
+      }
+    });
+
+    return {
+      monthly: {
+        count: monthlyCount,
+        amount: monthlyAmount,
+      },
+      yearly: {
+        count: yearlyCount,
+        amount: yearlyAmount,
+      },
+      total: {
+        count: monthlyCount + yearlyCount,
+        amount: monthlyAmount + yearlyAmount,
+      },
+    };
+  }, [members, payments]);
+
   const groupedDonations = useMemo(() => {
     const map = new Map<string, {
       key: string;
@@ -464,6 +507,13 @@ export default function ReportsPage() {
     membershipYearlySummary.forEach(y => {
       csvRows.push(`${escapeCSV(y.year)},${escapeCSV(formatCurrency(y.total))}`);
     });
+
+    csvRows.push('');
+    csvRows.push('=== MEMBERSHIP DISTRIBUTION ===');
+    csvRows.push('Subscription Type,Number of Members,Amount Collected');
+    csvRows.push(`Monthly,${membershipDistribution.monthly.count},${escapeCSV(formatCurrency(membershipDistribution.monthly.amount))}`);
+    csvRows.push(`Yearly,${membershipDistribution.yearly.count},${escapeCSV(formatCurrency(membershipDistribution.yearly.amount))}`);
+    csvRows.push(`Total,${membershipDistribution.total.count},${escapeCSV(formatCurrency(membershipDistribution.total.amount))}`);
 
     csvRows.push('');
     csvRows.push('');
@@ -773,6 +823,47 @@ export default function ReportsPage() {
                 </tbody>
               </table>
             </div>
+
+            {/* Membership Distribution Section */}
+            <div className="space-y-2 pt-4">
+              <h4 className="text-sm font-bold text-slate-200 print:text-slate-800 border-b pb-1">Membership Distribution</h4>
+              <div className="overflow-x-auto rounded-lg border border-slate-800 print:border-slate-300">
+                <table className="w-full text-left text-xs text-slate-350 print:text-slate-900">
+                  <thead className="bg-slate-900/60 print:bg-slate-100 text-xs font-semibold uppercase text-slate-400 print:text-slate-600 border-b border-slate-800 print:border-slate-300">
+                    <tr>
+                      <th className="p-3">Subscription Type</th>
+                      <th className="p-3">Number of Members</th>
+                      <th className="p-3 font-semibold text-emerald-400 print:text-emerald-700 text-right">Amount Collected</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800 print:divide-slate-300 bg-slate-900/10 print:bg-transparent">
+                    <tr className="hover:bg-slate-900/20">
+                      <td className="p-3 font-semibold text-white print:text-slate-900">Monthly</td>
+                      <td className="p-3 text-slate-400 print:text-slate-600">{membershipDistribution.monthly.count}</td>
+                      <td className="p-3 font-bold text-emerald-400 print:text-emerald-700 text-right">
+                        {formatCurrency(membershipDistribution.monthly.amount)}
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-slate-900/20">
+                      <td className="p-3 font-semibold text-white print:text-slate-900">Yearly</td>
+                      <td className="p-3 text-slate-400 print:text-slate-600">{membershipDistribution.yearly.count}</td>
+                      <td className="p-3 font-bold text-emerald-400 print:text-emerald-700 text-right">
+                        {formatCurrency(membershipDistribution.yearly.amount)}
+                      </td>
+                    </tr>
+                  </tbody>
+                  <tfoot className="border-t border-slate-800 print:border-slate-300 bg-slate-900/30 print:bg-slate-50">
+                    <tr>
+                      <td className="p-3 font-bold text-slate-200 print:text-slate-900 uppercase tracking-wide">Total</td>
+                      <td className="p-3 font-bold text-slate-300 print:text-slate-700">{membershipDistribution.total.count}</td>
+                      <td className="p-3 font-bold text-emerald-400 print:text-emerald-700 text-right">
+                        {formatCurrency(membershipDistribution.total.amount)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
           </div>
 
           {/* SECTION 2: DONATION REPORT */}
@@ -916,21 +1007,21 @@ export default function ReportsPage() {
             </div>
 
             <CategoryDonationSummaryTable
-              title="General Donations Summary"
+              title="GENERAL DONATIONS SUMMARY"
               rows={generalDonationsSummary}
               categoryTotal={stats.generalDonations}
               footerLabel="General Category Total"
             />
 
             <CategoryDonationSummaryTable
-              title="Sahar Donations Summary"
+              title="SAHAR DONATIONS SUMMARY"
               rows={saharDonationsSummary}
               categoryTotal={stats.saharDonations}
               footerLabel="Sahar Category Total"
             />
 
             <CategoryDonationSummaryTable
-              title="Iftar Donations Summary"
+              title="IFTAR DONATIONS SUMMARY"
               rows={iftarDonationsSummary}
               categoryTotal={stats.iftarDonations}
               footerLabel="Iftar Category Total"

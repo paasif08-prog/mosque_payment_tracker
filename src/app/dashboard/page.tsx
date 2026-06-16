@@ -50,8 +50,13 @@ export default async function DashboardPage() {
   let overdue = 0;
   let dueToday = 0;
   let dueThisWeek = 0;
+  let monthlyMembersCount = 0;
+  let yearlyMembersCount = 0;
 
   memberRows?.forEach((m) => {
+    if (m.subscription_type === 'Monthly') monthlyMembersCount++;
+    else if (m.subscription_type === 'Yearly') yearlyMembersCount++;
+
     const memberPayments = paymentsByMember.get(m.id) || [];
     const totalPaid = memberPayments.reduce((sum, p) => sum + p.amount, 0);
     const nextDueDate = calculateCoverageNextDueDate(
@@ -193,6 +198,40 @@ export default async function DashboardPage() {
           <div className="mt-4">
             <span className="text-3xl font-bold text-white">{total}</span>
             <p className="text-xs text-slate-500 mt-1">Registered members in tracker</p>
+          </div>
+        </Link>
+
+        {/* Monthly Members Count */}
+        <Link
+          href="/dashboard/members?subscription=Monthly"
+          className="relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900/40 p-6 shadow-md backdrop-blur-md hover:scale-[1.02] hover:border-slate-700/50 hover:shadow-lg hover:shadow-slate-950/50 transition duration-200 group block cursor-pointer"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-slate-400 group-hover:text-slate-300 transition-colors">Monthly Members</span>
+            <div className="rounded-lg bg-slate-800 p-2 text-slate-300 group-hover:bg-slate-700 transition-colors">
+              <Users className="h-5 w-5" />
+            </div>
+          </div>
+          <div className="mt-4">
+            <span className="text-3xl font-bold text-white">{monthlyMembersCount}</span>
+            <p className="text-xs text-slate-500 mt-1">Monthly billing cycle members</p>
+          </div>
+        </Link>
+
+        {/* Yearly Members Count */}
+        <Link
+          href="/dashboard/members?subscription=Yearly"
+          className="relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900/40 p-6 shadow-md backdrop-blur-md hover:scale-[1.02] hover:border-slate-700/50 hover:shadow-lg hover:shadow-slate-950/50 transition duration-200 group block cursor-pointer"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-slate-400 group-hover:text-slate-300 transition-colors">Yearly Members</span>
+            <div className="rounded-lg bg-slate-800 p-2 text-slate-300 group-hover:bg-slate-700 transition-colors">
+              <Users className="h-5 w-5" />
+            </div>
+          </div>
+          <div className="mt-4">
+            <span className="text-3xl font-bold text-white">{yearlyMembersCount}</span>
+            <p className="text-xs text-slate-500 mt-1">Yearly billing cycle members</p>
           </div>
         </Link>
 

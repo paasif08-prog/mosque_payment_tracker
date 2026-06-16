@@ -42,6 +42,7 @@ function MembersPageContent() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'All' | 'Paid' | 'Unpaid' | 'Due Soon' | 'Overdue' | 'Due Today'>('All');
+  const [subTypeFilter, setSubTypeFilter] = useState<'All' | 'Monthly' | 'Yearly'>('All');
   const [dueWeekFilter, setDueWeekFilter] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
@@ -141,6 +142,15 @@ function MembersPageContent() {
       updated = true;
     }
 
+    const subParam = searchParams.get('subscription');
+    if (subParam) {
+      const mapped = subParam.toLowerCase() === 'monthly' ? 'Monthly' : subParam.toLowerCase() === 'yearly' ? 'Yearly' : null;
+      if (mapped) {
+        setSubTypeFilter(mapped);
+        updated = true;
+      }
+    }
+
     if (updated) {
       // Remove query param without reload
       const newUrl = window.location.pathname;
@@ -219,6 +229,9 @@ function MembersPageContent() {
     const matchesStatus =
       statusFilter === 'All' || member.status === statusFilter;
 
+    const matchesSubType =
+      subTypeFilter === 'All' || member.subscription_type === subTypeFilter;
+
     let matchesDueWeek = true;
     if (dueWeekFilter) {
       const today = new Date();
@@ -229,7 +242,7 @@ function MembersPageContent() {
       matchesDueWeek = diffDays >= 0 && diffDays <= 7;
     }
 
-    return matchesSearch && matchesStatus && matchesDueWeek;
+    return matchesSearch && matchesStatus && matchesDueWeek && matchesSubType;
   });
 
   // Pagination calculations
@@ -247,7 +260,7 @@ function MembersPageContent() {
   // Reset page when search/filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, statusFilter, dueWeekFilter]);
+  }, [searchQuery, statusFilter, dueWeekFilter, subTypeFilter]);
 
   return (
     <div className="space-y-6 min-w-0">
@@ -331,6 +344,31 @@ function MembersPageContent() {
             Due This Week
             {dueWeekFilter && <X className="h-3 w-3 ml-0.5" />}
           </button>
+
+          <span className="h-4 w-px bg-slate-800 mx-1 hidden sm:inline" />
+
+          <span className="text-xs text-slate-500 font-medium flex items-center gap-1">
+            Subscription:
+          </span>
+          {([
+            'All',
+            'Monthly',
+            'Yearly',
+          ] as const).map((filter) => (
+            <button
+              key={filter}
+              onClick={() => {
+                setSubTypeFilter(filter);
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition duration-150 ${
+                subTypeFilter === filter
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-slate-200'
+              }`}
+            >
+              {filter}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -345,15 +383,16 @@ function MembersPageContent() {
           <User className="h-12 w-12 text-slate-700 mb-4" />
           <h3 className="text-lg font-semibold text-slate-300">No members found</h3>
           <p className="text-sm text-slate-500 mt-1 max-w-sm">
-            {searchQuery || statusFilter !== 'All' || dueWeekFilter
+            {searchQuery || statusFilter !== 'All' || dueWeekFilter || subTypeFilter !== 'All'
               ? 'No members match your search queries and status filters.'
               : 'Get started by adding your first member to the system.'}
           </p>
-          {(searchQuery || statusFilter !== 'All' || dueWeekFilter) && (
+          {(searchQuery || statusFilter !== 'All' || dueWeekFilter || subTypeFilter !== 'All') && (
             <button
               onClick={() => {
                 setSearchQuery('');
                 setStatusFilter('All');
+                setSubTypeFilter('All');
                 setDueWeekFilter(false);
               }}
               className="mt-4 text-xs font-semibold text-indigo-400 hover:text-indigo-300 underline"
